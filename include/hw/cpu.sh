@@ -122,15 +122,17 @@ function cpu_execute {
             fi
             return 0
             ;;
-        "${CPU_ENCRYPT_CMD}")
-            CPU_REGISTER_OUT="${CPU_REGISTER1}"
-            ;;
-        "${CPU_DECRYPT_CMD}")
-            CPU_REGISTER_OUT="${CPU_REGISTER1}"
+        "${CPU_ENCRYPT_CMD}"|"${CPU_DECRYPT_CMD}")
+            local INPUT="${CPU_REGISTER1}"
+            local OUTPUT=""
+            for ((i = 0; i < ${#INPUT}; i+=2)); do
+                local PAIR=$(echo "${INPUT:$i:2}" | tr '[:lower:][:upper:]' '[:upper:][:lower:]')
+                local SWAPPED_PAIR=${PAIR:1:1}${PAIR:0:1}
+                OUTPUT+=$SWAPPED_PAIR
+            done
+            CPU_REGISTER_OUT="${OUTPUT}"
             ;;
         *)
-            exit_fatal "Unknown cpu instruction: ${CPU_REGISTER_CMD}"
-            ;;
     esac
     write_to_address ${GLOBAL_OUTPUT_ADDRESS} "${CPU_REGISTER_OUT}"
 }

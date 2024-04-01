@@ -285,6 +285,13 @@ FUNC:file_read
     read_device_buffer ${VAR_file_read_disk_name_ADDRESS} ${GLOBAL_OUTPUT_ADDRESS}
     *VAR_file_read_temp_var_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
 
+    if *VAR_file_read_temp_var_ADDRESS==""
+        return *VAR_file_read_temp_var_ADDRESS
+    fi
+
+    cpu_execute "${CPU_DECRYPT_CMD}" ${VAR_file_read_temp_var_ADDRESS}
+    *VAR_file_read_temp_var_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
     return *VAR_file_read_temp_var_ADDRESS
 
 # function writes one line to the file with provided file descriptor
@@ -294,6 +301,8 @@ FUNC:file_write
     var file_write_disk_name
     var file_write_info
     var file_write_temp_var
+    var encrypted_text
+    var line_number
 
     call_func file_info ${GLOBAL_ARG1_ADDRESS}
     *VAR_file_write_info_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
@@ -307,9 +316,17 @@ FUNC:file_write
         return "-1"
     fi
 
-    write_device_buffer ${VAR_file_write_disk_name_ADDRESS} ${GLOBAL_OUTPUT_ADDRESS} ${GLOBAL_ARG2_ADDRESS}
-    *VAR_file_write_temp_var_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+    *VAR_line_number_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
 
+    if *GLOBAL_ARG2_ADDRESS==""
+        write_device_buffer ${VAR_file_write_disk_name_ADDRESS} ${VAR_line_number_ADDRESS} ${GLOBAL_ARG2_ADDRESS}
+    else
+        cpu_execute "${CPU_ENCRYPT_CMD}" ${GLOBAL_ARG2_ADDRESS}
+        *VAR_encrypted_text_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        write_device_buffer ${VAR_file_write_disk_name_ADDRESS} ${VAR_line_number_ADDRESS} ${VAR_encrypted_text_ADDRESS}
+    fi
+
+    *VAR_file_write_temp_var_ADDRESS=*VAR_line_number_ADDRESS
     return *VAR_file_write_temp_var_ADDRESS
 
 # function sets cursor to file descriptor
