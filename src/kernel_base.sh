@@ -81,12 +81,19 @@ if *VAR_original_input_cmd_ADDRESS=="cat"
     jump_to ${LABEL_kernel_loop_start}
 fi
 
+# check for rm command:
+if *VAR_original_input_cmd_ADDRESS=="rm"
+    call_func system_rm ${VAR_original_input_arg1_ADDRESS}
+    jump_to ${LABEL_kernel_loop_start}
+fi
+
 # check for touch command:
 if *VAR_original_input_cmd_ADDRESS=="touch"
     call_func system_touch ${VAR_original_input_arg1_ADDRESS} ${VAR_original_input_arg2_ADDRESS}
     jump_to ${LABEL_kernel_loop_start}
 fi
 
+# check for ls command:
 if *VAR_original_input_cmd_ADDRESS=="ls"
     call_func system_ls ${VAR_original_input_arg1_ADDRESS} ${VAR_original_input_arg2_ADDRESS}
     jump_to ${LABEL_kernel_loop_start}
@@ -153,6 +160,37 @@ FUNC:system_cat
 
   LABEL:system_cat_error
     *GLOBAL_DISPLAY_ADDRESS="Error opening file"
+    display_error
+    return "1"
+
+FUNC:system_rm
+    var system_rm_temp_var
+    var filepath
+
+    if *GLOBAL_ARG1_ADDRESS==""
+        jump_to ${LABEL_file_remove_error}
+    fi
+
+    *VAR_filepath_ADDRESS=*GLOBAL_ARG1_ADDRESS
+
+    cpu_execute "${CPU_CORRECT_PATH_CMD}" ${VAR_filepath_ADDRESS}
+    if *GLOBAL_OUTPUT_ADDRESS=="0"
+        jump_to ${LABEL_system_remove_error}
+    fi
+
+  LABEL:system_remove_file
+    call_func file_remove ${VAR_filepath_ADDRESS}
+
+    *VAR_system_rm_temp_var_ADDRESS="-1"
+    cpu_execute "${CPU_EQUAL_CMD}" ${GLOBAL_OUTPUT_ADDRESS} ${VAR_system_rm_temp_var_ADDRESS}
+    jump_if ${LABEL_system_remove_error}
+
+    *GLOBAL_DISPLAY_ADDRESS="File was successfully removed."
+    display_success
+    return "0"
+
+  LABEL:system_remove_error
+    *GLOBAL_DISPLAY_ADDRESS="Problems with removing file."
     display_error
     return "1"
 

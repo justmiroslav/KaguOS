@@ -505,13 +505,19 @@ FUNC:file_create
         *VAR_file_create_cur_part_header_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
 
         # Let's get free range for current partition:
-        *VAR_file_create_temp_var_ADDRESS="7"
+        cpu_execute "${CPU_GET_FREE_RANGE_CMD}" ${VAR_file_create_cur_part_header_ADDRESS} ${GLOBAL_ARG2_ADDRESS}
+        if *GLOBAL_OUTPUT_ADDRESS=="-1"
+            jump_to ${LABEL_file_create_error}
+        fi
+        *VAR_file_create_temp_var_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
         cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_file_create_cur_part_header_ADDRESS} ${VAR_file_create_temp_var_ADDRESS}
         *VAR_file_create_start_index_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
 
         # Not let's use input argument with file size to calculate end index and check whether it will be inside partition:
         cpu_execute "${CPU_ADD_CMD}" ${VAR_file_create_start_index_ADDRESS} ${GLOBAL_ARG2_ADDRESS}
         *GLOBAL_OUTPUT_ADDRESS--
+
         *VAR_file_create_end_index_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
         cpu_execute "${CPU_LESS_THAN_CMD}" ${VAR_file_create_partition_end_ADDRESS} ${VAR_file_create_end_index_ADDRESS}
         jump_if ${LABEL_file_create_error}
@@ -520,8 +526,8 @@ FUNC:file_create
         var file_create_new_part_free_start
         *VAR_file_create_new_part_free_start_ADDRESS=*VAR_file_create_end_index_ADDRESS
         *VAR_file_create_new_part_free_start_ADDRESS++
-        *VAR_file_create_temp_var_ADDRESS="7"
-        cpu_execute "${CPU_REPLACE_COLUMN_CMD}" ${VAR_file_create_cur_part_header_ADDRESS} ${VAR_file_create_temp_var_ADDRESS} ${VAR_file_create_new_part_free_start_ADDRESS}
+
+        cpu_execute "${CPU_UPDATE_FREE_RANGE_CMD}" ${VAR_file_create_cur_part_header_ADDRESS} ${VAR_file_create_start_index_ADDRESS} ${VAR_file_create_new_part_free_start_ADDRESS}
         write_device_buffer ${VAR_file_create_disk_name_ADDRESS} ${VAR_file_create_partition_header_ADDRESS} ${GLOBAL_OUTPUT_ADDRESS}
         # create new file by adding new record to header
         *VAR_file_create_temp_var_ADDRESS="file 7 7 7 root root"
@@ -543,6 +549,100 @@ FUNC:file_create
         func_return
 
     LABEL:file_create_error
+        return "-1"
+
+FUNC:file_remove
+        var file_remove_disk_info
+        var file_remove_temp_var
+        var file_remove_disk_name
+        var file_remove_partition_line_counter
+        var file_remove_filename
+        var file_remove_partition_line
+        var file_remove_range_start
+        var file_remove_range_end
+        var file_remove_counter
+        var file_remove_line
+        var file_remove_content_start
+        var file_remove_content_end
+
+        # Check for mount point and partition existence for a given filepath to remove
+        call_func file_found_disk ${GLOBAL_ARG1_ADDRESS}
+        *VAR_file_remove_disk_info_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        if *VAR_file_remove_disk_info_ADDRESS=="-1"
+            jump_to ${LABEL_file_remove_error}
+        fi
+
+        # Extract necessary disk and partition information
+        *VAR_file_remove_temp_var_ADDRESS="1"
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_file_remove_disk_info_ADDRESS} ${VAR_file_remove_temp_var_ADDRESS}
+        *VAR_file_remove_disk_name_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+        *VAR_file_remove_temp_var_ADDRESS="3"
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_file_remove_disk_info_ADDRESS} ${VAR_file_remove_temp_var_ADDRESS}
+        *VAR_file_remove_partition_line_counter_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+        *VAR_file_remove_temp_var_ADDRESS="4"
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_file_remove_disk_info_ADDRESS} ${VAR_file_remove_temp_var_ADDRESS}
+        *VAR_file_remove_filename_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+        read_device_buffer ${VAR_file_remove_disk_name_ADDRESS} ${VAR_file_remove_partition_line_counter_ADDRESS}
+        *VAR_file_remove_partition_line_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+        *VAR_file_remove_temp_var_ADDRESS="4"
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_file_remove_partition_line_ADDRESS} ${VAR_file_remove_temp_var_ADDRESS}
+        *VAR_file_remove_range_start_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+        *VAR_file_remove_temp_var_ADDRESS="5"
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_file_remove_partition_line_ADDRESS} ${VAR_file_remove_temp_var_ADDRESS}
+        *VAR_file_remove_range_end_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+        # Find the first line between range start and range end that starts with filename   
+        *VAR_file_remove_counter_ADDRESS=*VAR_file_remove_range_start_ADDRESS
+
+    LABEL:file_search_loop
+        read_device_buffer ${VAR_file_remove_disk_name_ADDRESS} ${VAR_file_remove_counter_ADDRESS}
+        *VAR_file_remove_line_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+        *VAR_file_remove_temp_var_ADDRESS="DUMMY_FS_END"
+        cpu_execute "${CPU_EQUAL_CMD}" ${VAR_file_remove_line_ADDRESS} ${VAR_file_remove_temp_var_ADDRESS}
+        jump_if ${LABEL_file_remove_error}
+
+        *VAR_file_remove_temp_var_ADDRESS="1"
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_file_remove_line_ADDRESS} ${VAR_file_remove_temp_var_ADDRESS}
+
+        cpu_execute "${CPU_EQUAL_CMD}" ${VAR_file_remove_filename_ADDRESS} ${GLOBAL_OUTPUT_ADDRESS}
+        jump_if ${LABEL_file_remove_content}
+
+        *VAR_file_remove_counter_ADDRESS++
+        jump_to ${LABEL_file_search_loop}
+
+    LABEL:file_remove_content
+        *VAR_file_remove_temp_var_ADDRESS="8"
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_file_remove_line_ADDRESS} ${VAR_file_remove_temp_var_ADDRESS}
+        *VAR_file_remove_content_start_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+        *VAR_file_remove_temp_var_ADDRESS="9"
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_file_remove_line_ADDRESS} ${VAR_file_remove_temp_var_ADDRESS}
+        *VAR_file_remove_content_end_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+        *VAR_file_remove_temp_var_ADDRESS=""
+        write_device_buffer ${VAR_file_remove_disk_name_ADDRESS} ${VAR_file_remove_counter_ADDRESS} ${VAR_file_remove_temp_var_ADDRESS}
+        *VAR_file_remove_counter_ADDRESS=*VAR_file_remove_content_start_ADDRESS
+
+    LABEL:file_remove_content_loop
+        write_device_buffer ${VAR_file_remove_disk_name_ADDRESS} ${VAR_file_remove_counter_ADDRESS} ${VAR_file_remove_temp_var_ADDRESS}
+        cpu_execute "${CPU_EQUAL_CMD}" ${VAR_file_remove_counter_ADDRESS} ${VAR_file_remove_content_end_ADDRESS}
+        jump_if ${LABEL_file_free_space}
+
+        *VAR_file_remove_counter_ADDRESS++
+        jump_to ${LABEL_file_remove_content_loop}
+
+    LABEL:file_free_space
+        cpu_execute "${CPU_REMOVE_FREE_RANGE_CMD}" ${VAR_file_remove_partition_line_ADDRESS} ${VAR_file_remove_content_start_ADDRESS} ${VAR_file_remove_content_end_ADDRESS}
+        write_device_buffer ${VAR_file_remove_disk_name_ADDRESS} ${VAR_file_remove_partition_line_counter_ADDRESS} ${GLOBAL_OUTPUT_ADDRESS}
+        return "0"
+    
+    LABEL:file_remove_error
         return "-1"
 
 # Conversion of int value permission to string like rwx, r-x, etc
