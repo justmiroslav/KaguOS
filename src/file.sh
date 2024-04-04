@@ -498,37 +498,92 @@ FUNC:file_create
             jump_to ${LABEL_file_create_error}
         fi
 
+        var file_create_free_range_temp_var
+        var file_create_free_range_start
+        var file_create_free_range_end
+        var file_create_free_range_diff
         var file_create_start_index
         var file_create_end_index
         var file_create_cur_part_header
+        var file_create_free_range_start_index
+        var file_create_free_range_index
+        var file_create_cur_free_range_index
         read_device_buffer ${VAR_file_create_disk_name_ADDRESS} ${VAR_file_create_partition_header_ADDRESS}
         *VAR_file_create_cur_part_header_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        *VAR_file_create_temp_var_ADDRESS="7"
+        *VAR_file_create_free_range_temp_var_ADDRESS=""
 
-        # Let's get free range for current partition:
-        cpu_execute "${CPU_GET_FREE_RANGE_CMD}" ${VAR_file_create_cur_part_header_ADDRESS} ${GLOBAL_ARG2_ADDRESS}
-        if *GLOBAL_OUTPUT_ADDRESS=="-1"
-            jump_to ${LABEL_file_create_error}
-        fi
-        *VAR_file_create_temp_var_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
-
+    LABEL:file_create_find_index_loop
+        *VAR_file_create_free_range_start_index_ADDRESS=*VAR_file_create_temp_var_ADDRESS
+        # start of free range
         cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_file_create_cur_part_header_ADDRESS} ${VAR_file_create_temp_var_ADDRESS}
+        if *GLOBAL_OUTPUT_ADDRESS==""
+            jump_to ${LABEL_file_create_index_found}
+        fi
+        *VAR_file_create_free_range_start_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        *VAR_file_create_temp_var_ADDRESS++
+        # end of free range
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_file_create_cur_part_header_ADDRESS} ${VAR_file_create_temp_var_ADDRESS}
+        *VAR_file_create_free_range_end_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        *VAR_file_create_temp_var_ADDRESS++
+        # calculate free range size
+        cpu_execute "${CPU_SUBTRACT_CMD}" ${VAR_file_create_free_range_end_ADDRESS} ${VAR_file_create_free_range_start_ADDRESS}
+        *VAR_file_create_free_range_diff_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        *VAR_file_create_free_range_diff_ADDRESS++
+        # if first try - temp value is start index
+        if *VAR_file_create_free_range_temp_var_ADDRESS==""
+            cpu_execute "${CPU_LESS_THAN_CMD}" ${VAR_file_create_free_range_diff_ADDRESS} ${GLOBAL_ARG2_ADDRESS}
+            jump_if ${LABEL_file_create_error}
+            *VAR_file_create_free_range_temp_var_ADDRESS=*VAR_file_create_free_range_start_index_ADDRESS
+            jump_to ${LABEL_file_create_find_index_loop}
+        fi
+        # check whether free range is big enough to store new file
+        cpu_execute "${CPU_LESS_THAN_CMD}" ${VAR_file_create_free_range_diff_ADDRESS} ${GLOBAL_ARG2_ADDRESS}
+        jump_if ${LABEL_file_create_find_index_loop}
+        # if not first try - temp value is min of temp value and start index
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_file_create_cur_part_header_ADDRESS} ${VAR_file_create_free_range_start_index_ADDRESS}
+        *VAR_file_create_cur_free_range_index_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_file_create_cur_part_header_ADDRESS} ${VAR_file_create_free_range_temp_var_ADDRESS}
+        *VAR_file_create_free_range_index_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        cpu_execute "${CPU_LESS_THAN_CMD}" ${VAR_file_create_free_range_index_ADDRESS} ${VAR_file_create_cur_free_range_index_ADDRESS}
+        jump_if ${LABEL_file_create_find_index_loop}
+        *VAR_file_create_free_range_temp_var_ADDRESS=*VAR_file_create_free_range_start_index_ADDRESS
+        jump_to ${LABEL_file_create_find_index_loop}
+    
+    LABEL:file_create_index_found
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_file_create_cur_part_header_ADDRESS} ${VAR_file_create_free_range_temp_var_ADDRESS}
         *VAR_file_create_start_index_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
 
-        # Not let's use input argument with file size to calculate end index and check whether it will be inside partition:
         cpu_execute "${CPU_ADD_CMD}" ${VAR_file_create_start_index_ADDRESS} ${GLOBAL_ARG2_ADDRESS}
         *GLOBAL_OUTPUT_ADDRESS--
-
         *VAR_file_create_end_index_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
-        cpu_execute "${CPU_LESS_THAN_CMD}" ${VAR_file_create_partition_end_ADDRESS} ${VAR_file_create_end_index_ADDRESS}
-        jump_if ${LABEL_file_create_error}
 
         # Now we should update partition header to decrease free space:
         var file_create_new_part_free_start
+        var file_create_shift_counter
+        *VAR_file_create_shift_counter_ADDRESS=*VAR_file_create_free_range_temp_var_ADDRESS
         *VAR_file_create_new_part_free_start_ADDRESS=*VAR_file_create_end_index_ADDRESS
-        *VAR_file_create_new_part_free_start_ADDRESS++
+        *VAR_file_create_free_range_temp_var_ADDRESS++
 
-        cpu_execute "${CPU_UPDATE_FREE_RANGE_CMD}" ${VAR_file_create_cur_part_header_ADDRESS} ${VAR_file_create_start_index_ADDRESS} ${VAR_file_create_new_part_free_start_ADDRESS}
+    LABEL:file_create_update_header
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_file_create_cur_part_header_ADDRESS} ${VAR_file_create_free_range_temp_var_ADDRESS}
+        *VAR_file_create_free_range_end_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+        cpu_execute "${CPU_EQUAL_CMD}" ${VAR_file_create_free_range_end_ADDRESS} ${VAR_file_create_new_part_free_start_ADDRESS}
+        jump_if ${LABEL_file_delete_old_record}
+
+        *VAR_file_create_new_part_free_start_ADDRESS++
+        cpu_execute "${CPU_REPLACE_COLUMN_CMD}" ${VAR_file_create_cur_part_header_ADDRESS} ${VAR_file_create_shift_counter_ADDRESS} ${VAR_file_create_new_part_free_start_ADDRESS}
         write_device_buffer ${VAR_file_create_disk_name_ADDRESS} ${VAR_file_create_partition_header_ADDRESS} ${GLOBAL_OUTPUT_ADDRESS}
+
+        jump_to ${LABEL_file_create_new_record}
+
+    LABEL:file_delete_old_record
+        cpu_execute "${CPU_REMOVE_COLUMN_CMD}" ${VAR_file_create_cur_part_header_ADDRESS} ${VAR_file_create_shift_counter_ADDRESS}
+        cpu_execute "${CPU_REMOVE_COLUMN_CMD}" ${GLOBAL_OUTPUT_ADDRESS} ${VAR_file_create_shift_counter_ADDRESS}
+        write_device_buffer ${VAR_file_create_disk_name_ADDRESS} ${VAR_file_create_partition_header_ADDRESS} ${GLOBAL_OUTPUT_ADDRESS}
+
+    LABEL:file_create_new_record
         # create new file by adding new record to header
         *VAR_file_create_temp_var_ADDRESS="file 7 7 7 root root"
         cpu_execute "${CPU_CONCAT_SPACES_CMD}" ${VAR_file_create_filename_ADDRESS} ${VAR_file_create_temp_var_ADDRESS}
@@ -638,7 +693,8 @@ FUNC:file_remove
         jump_to ${LABEL_file_remove_content_loop}
 
     LABEL:file_free_space
-        cpu_execute "${CPU_REMOVE_FREE_RANGE_CMD}" ${VAR_file_remove_partition_line_ADDRESS} ${VAR_file_remove_content_start_ADDRESS} ${VAR_file_remove_content_end_ADDRESS}
+        cpu_execute "${CPU_CONCAT_SPACES_CMD}" ${VAR_file_remove_partition_line_ADDRESS} ${VAR_file_remove_content_start_ADDRESS}
+        cpu_execute "${CPU_CONCAT_SPACES_CMD}" ${GLOBAL_OUTPUT_ADDRESS} ${VAR_file_remove_content_end_ADDRESS}
         write_device_buffer ${VAR_file_remove_disk_name_ADDRESS} ${VAR_file_remove_partition_line_counter_ADDRESS} ${GLOBAL_OUTPUT_ADDRESS}
         return "0"
     

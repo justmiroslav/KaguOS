@@ -165,21 +165,12 @@ FUNC:system_cat
 
 FUNC:system_rm
     var system_rm_temp_var
-    var filepath
 
     if *GLOBAL_ARG1_ADDRESS==""
-        jump_to ${LABEL_file_remove_error}
-    fi
-
-    *VAR_filepath_ADDRESS=*GLOBAL_ARG1_ADDRESS
-
-    cpu_execute "${CPU_CORRECT_PATH_CMD}" ${VAR_filepath_ADDRESS}
-    if *GLOBAL_OUTPUT_ADDRESS=="0"
         jump_to ${LABEL_system_remove_error}
     fi
-
-  LABEL:system_remove_file
-    call_func file_remove ${VAR_filepath_ADDRESS}
+    
+    call_func file_remove ${GLOBAL_ARG1_ADDRESS}
 
     *VAR_system_rm_temp_var_ADDRESS="-1"
     cpu_execute "${CPU_EQUAL_CMD}" ${GLOBAL_OUTPUT_ADDRESS} ${VAR_system_rm_temp_var_ADDRESS}

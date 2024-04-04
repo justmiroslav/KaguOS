@@ -13,15 +13,12 @@ export CPU_CONCAT_CMD="concat"
 export CPU_CONCAT_SPACES_CMD="concat_spaces"
 export CPU_GET_COLUMN_CMD="get_column"
 export CPU_REPLACE_COLUMN_CMD="replace_column"
+export CPU_REMOVE_COLUMN_CMD="remove_column"
 export CPU_LESS_THAN_CMD="less_than"
 export CPU_LESS_THAN_EQUAL_CMD="less_than_equal"
 export CPU_STARTS_WITH_CMD="starts_with"
 export CPU_ENCRYPT_CMD="encrypt"
 export CPU_DECRYPT_CMD="decrypt"
-export CPU_CORRECT_PATH_CMD="correct_path"
-export CPU_REMOVE_FREE_RANGE_CMD="remove_free_range"
-export CPU_GET_FREE_RANGE_CMD="get_free_range"
-export CPU_UPDATE_FREE_RANGE_CMD="update_free_range"
 
 # CPU execution function
 
@@ -113,6 +110,9 @@ function cpu_execute {
         "${CPU_REPLACE_COLUMN_CMD}")
             CPU_REGISTER_OUT=$(echo "${CPU_REGISTER1}" | awk -F' ' '{$'${CPU_REGISTER2}'='${CPU_REGISTER3}'}1' )
             ;;
+        "${CPU_REMOVE_COLUMN_CMD}")
+            CPU_REGISTER_OUT=$(echo "${CPU_REGISTER1}" | awk -F' ' -v "reg=${CPU_REGISTER2}" '{sub(" "$reg, "")}1' )
+            ;;
         "${CPU_STARTS_WITH_CMD}")
             if [[ "${CPU_REGISTER1}" == "${CPU_REGISTER2}"* ]]; then
                 CPU_REGISTER_OUT="1"
@@ -136,95 +136,9 @@ function cpu_execute {
             done
             CPU_REGISTER_OUT="${OUTPUT}"
             ;;
-        "${CPU_CORRECT_PATH_CMD}")
-            if [[ "${CPU_REGISTER1:0:5}" == "/mnt/" ]]; then
-                CPU_REGISTER_OUT="1"
-            else
-                CPU_REGISTER_OUT="0"
-            fi
-            ;;
-        "${CPU_REMOVE_FREE_RANGE_CMD}")
-            local INPUT="${CPU_REGISTER1%%FREE_RANGE: *}FREE_RANGE: "
-            local START_ADDRESS="${CPU_REGISTER2}"
-            local END_ADDRESS="${CPU_REGISTER3}"
-            local FREE_RANGE_LIST=($( echo "${CPU_REGISTER1#*FREE_RANGE: }" | tr ' ' '\n' ))
-            local NEW_LIST=()
-
-            for ((i=0; i<${#FREE_RANGE_LIST[@]}; i+=2)); do
-                if (( END_ADDRESS + 1 == FREE_RANGE_LIST[i+2] && START_ADDRESS - 1 == FREE_RANGE_LIST[i+1] )); then
-                    NEW_LIST+=("${FREE_RANGE_LIST[i]}")
-                    NEW_LIST+=("${FREE_RANGE_LIST[i+3]}")
-                    i=$((i+4))
-                    continue
-                elif (( END_ADDRESS + 1 == FREE_RANGE_LIST[i] )); then
-                    NEW_LIST+=("$START_ADDRESS")
-                    NEW_LIST+=("${FREE_RANGE_LIST[i+1]}")
-                elif (( END_ADDRESS + 1 < FREE_RANGE_LIST[i] )); then
-                    NEW_LIST+=("$START_ADDRESS")
-                    NEW_LIST+=("$END_ADDRESS")
-                    NEW_LIST+=("${FREE_RANGE_LIST[i]}")
-                    NEW_LIST+=("${FREE_RANGE_LIST[i+1]}")
-                elif (( START_ADDRESS - 1 == FREE_RANGE_LIST[i+1] )); then
-                    NEW_LIST+=("${FREE_RANGE_LIST[i]}")
-                    NEW_LIST+=("$END_ADDRESS")
-                else
-                    NEW_LIST+=("${FREE_RANGE_LIST[i]}")
-                    NEW_LIST+=("${FREE_RANGE_LIST[i+1]}")
-                fi
-            done
-
-            local NEW_LIST_STR="${NEW_LIST[*]}"
-            CPU_REGISTER_OUT="${INPUT}${NEW_LIST_STR% }"
-            ;;
-        "${CPU_GET_FREE_RANGE_CMD}")
-            local INPUT="${CPU_REGISTER1%%FREE_RANGE: *}FREE_RANGE: "
-            local FREE_RANGE_LIST=($( echo "${CPU_REGISTER1#*FREE_RANGE: }" | tr ' ' '\n' ))
-            local MEM_COUNT="${CPU_REGISTER2}"
-            local RESULT=""
-            local OK=false
-
-            for ((i=0; i<${#FREE_RANGE_LIST[@]}; i+=2)); do
-                if (( 1 + FREE_RANGE_LIST[i+1] - FREE_RANGE_LIST[i] >= MEM_COUNT )); then
-                    RESULT="$((i+7))"
-                    OK=true
-                    break
-                fi
-            done
-
-            if [ "${OK}" = false ]; then
-                RESULT="-1"
-            fi
-
-            CPU_REGISTER_OUT="${RESULT}"
-            ;;
-        "${CPU_UPDATE_FREE_RANGE_CMD}")
-            local INPUT="${CPU_REGISTER1%%FREE_RANGE: *}FREE_RANGE: "
-            local FREE_RANGE_LIST=($( echo "${CPU_REGISTER1#*FREE_RANGE: }" | tr ' ' '\n' ))
-            local OLD_MEM_COUNT="${CPU_REGISTER2}"
-            local NEW_MEM_COUNT="${CPU_REGISTER3}"
-            local NEW_LIST=()
-
-            for ((i=0; i<${#FREE_RANGE_LIST[@]}; i+=2)); do
-                if (( FREE_RANGE_LIST[i] == OLD_MEM_COUNT )); then
-                    if (( NEW_MEM_COUNT > FREE_RANGE_LIST[i+1] )); then
-                        NEW_LIST+=("${FREE_RANGE_LIST[i+2]}")
-                        NEW_LIST+=("${FREE_RANGE_LIST[i+3]}")
-                        i=$((i+4))
-                        continue
-                    else 
-                        NEW_LIST+=("${NEW_MEM_COUNT}")
-                        NEW_LIST+=("${FREE_RANGE_LIST[i+1]}")
-                    fi
-                else
-                    NEW_LIST+=("${FREE_RANGE_LIST[i]}")
-                    NEW_LIST+=("${FREE_RANGE_LIST[i+1]}")
-                fi
-            done
-
-            local NEW_LIST_STR="${NEW_LIST[*]}"
-            CPU_REGISTER_OUT="${INPUT}${NEW_LIST_STR% }"
-            ;;
         *)
+            exit_fatal "Unknown cpu instruction: ${CPU_REGISTER_CMD}"
+            ;;
     esac
     write_to_address ${GLOBAL_OUTPUT_ADDRESS} "${CPU_REGISTER_OUT}"
 }
