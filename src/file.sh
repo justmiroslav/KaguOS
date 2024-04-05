@@ -382,6 +382,69 @@ FUNC:file_cursor_to_line
     *GLOBAL_OUTPUT_ADDRESS--
     func_return
 
+FUNC:file_extract_lines
+    var file_extract_lines_info
+    var file_extract_lines_start_range
+    var file_extract_lines_end_range
+    var file_extract_lines_counter
+    var file_extract_lines_temp_var
+    var file_extract_lines_temp_diff
+
+    call_func file_info ${GLOBAL_ARG1_ADDRESS}
+    *VAR_file_extract_lines_info_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+    *VAR_file_extract_lines_temp_var_ADDRESS="10"
+    *VAR_file_extract_lines_counter_ADDRESS="0"
+
+    LABEL:find_lines_count_loop
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_file_extract_lines_info_ADDRESS} ${VAR_file_extract_lines_temp_var_ADDRESS}
+        if *GLOBAL_OUTPUT_ADDRESS==""
+            jump_to ${LABEL_find_start_index}
+        fi
+        *VAR_file_extract_lines_start_range_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        *VAR_file_extract_lines_temp_var_ADDRESS++
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_file_extract_lines_info_ADDRESS} ${VAR_file_extract_lines_temp_var_ADDRESS}
+        *VAR_file_extract_lines_end_range_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        *VAR_file_extract_lines_temp_var_ADDRESS++
+        cpu_execute "${CPU_SUBTRACT_CMD}" ${VAR_file_extract_lines_end_range_ADDRESS} ${VAR_file_extract_lines_start_range_ADDRESS}
+        *GLOBAL_OUTPUT_ADDRESS++
+        cpu_execute "${CPU_ADD_CMD}" ${VAR_file_extract_lines_counter_ADDRESS} ${GLOBAL_OUTPUT_ADDRESS}
+        *VAR_file_extract_lines_counter_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        jump_to ${LABEL_find_lines_count_loop}
+    
+    LABEL:find_start_index
+        cpu_execute "${CPU_LESS_THAN_CMD}" ${VAR_file_extract_lines_counter_ADDRESS} ${GLOBAL_ARG2_ADDRESS}
+        jump_if ${LABEL_find_start_index_error}
+
+        cpu_execute "${CPU_SUBTRACT_CMD}" ${VAR_file_extract_lines_counter_ADDRESS} ${GLOBAL_ARG2_ADDRESS}
+        *VAR_file_extract_lines_counter_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        *VAR_file_extract_lines_counter_ADDRESS++
+        *VAR_file_extract_lines_temp_diff_ADDRESS="0"
+
+    LABEL:file_extract_lines_start
+        call_func file_read ${GLOBAL_ARG1_ADDRESS}
+
+        if *GLOBAL_OUTPUT_ADDRESS=="-1"
+            jump_to ${LABEL_file_extract_lines_end}
+        fi
+
+        *VAR_file_extract_lines_temp_var_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        *VAR_file_extract_lines_temp_diff_ADDRESS++
+
+        cpu_execute "${CPU_LESS_THAN_CMD}" ${VAR_file_extract_lines_temp_diff_ADDRESS} ${VAR_file_extract_lines_counter_ADDRESS}
+        jump_if ${LABEL_file_extract_lines_start}
+
+        *GLOBAL_DISPLAY_ADDRESS=*VAR_file_extract_lines_temp_var_ADDRESS
+        display_println
+
+        jump_to ${LABEL_file_extract_lines_start}
+
+    LABEL:file_extract_lines_end
+        call_func file_close ${GLOBAL_ARG1_ADDRESS}
+        return "0"
+
+    LABEL:find_start_index_error
+        return "Invalid range"
 
 # Create a new file
 # INPUT: file name, line count

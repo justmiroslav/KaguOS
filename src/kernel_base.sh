@@ -47,6 +47,7 @@ var original_input
 var original_input_cmd
 var original_input_arg1
 var original_input_arg2
+var original_input_arg3
 
 *VAR_original_input_ADDRESS=*GLOBAL_INPUT_ADDRESS
 *GLOBAL_ARG1_ADDRESS="1"
@@ -60,6 +61,10 @@ cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_original_input_ADDRESS} ${GLOBAL_ARG1_
 *GLOBAL_ARG1_ADDRESS="3"
 cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_original_input_ADDRESS} ${GLOBAL_ARG1_ADDRESS}
 *VAR_original_input_arg2_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+*GLOBAL_ARG1_ADDRESS="4"
+cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_original_input_ADDRESS} ${GLOBAL_ARG1_ADDRESS}
+*VAR_original_input_arg3_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
 
 # check for exit command:
 if *VAR_original_input_cmd_ADDRESS=="exit"
@@ -87,6 +92,15 @@ if *VAR_original_input_cmd_ADDRESS=="touch"
     jump_to ${LABEL_kernel_loop_start}
 fi
 
+# check for tail command:
+if *VAR_original_input_cmd_ADDRESS=="tail"
+    cpu_execute "${CPU_CONCAT_SPACES_CMD}" ${VAR_original_input_arg2_ADDRESS} ${VAR_original_input_arg3_ADDRESS}
+    *VAR_original_input_arg2_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+    call_func system_tail ${VAR_original_input_arg1_ADDRESS} ${VAR_original_input_arg2_ADDRESS}
+    jump_to ${LABEL_kernel_loop_start}
+fi
+
+# check for ls command:
 if *VAR_original_input_cmd_ADDRESS=="ls"
     call_func system_ls ${VAR_original_input_arg1_ADDRESS} ${VAR_original_input_arg2_ADDRESS}
     jump_to ${LABEL_kernel_loop_start}
@@ -209,6 +223,61 @@ FUNC:system_touch
     *GLOBAL_DISPLAY_ADDRESS="Error creating file"
     display_error
     return "1"
+
+FUNC:system_tail
+    var system_tail_temp_var
+    var system_tail_line_count
+    var system_tail_filename
+    var system_tail_file_descriptor
+
+    if *GLOBAL_ARG1_ADDRESS!="-n"
+        *GLOBAL_DISPLAY_ADDRESS="Unknown args. Usage: tail -n <line count> <filename>"
+        display_error
+        return "1"
+    fi
+
+    if *GLOBAL_ARG2_ADDRESS==""
+        *GLOBAL_DISPLAY_ADDRESS="Unknown args. Usage: tail -n <line count> <filename>"
+        display_error
+        return "1"
+    fi
+
+    *VAR_system_tail_temp_var_ADDRESS="1"
+    cpu_execute "${CPU_GET_COLUMN_CMD}" ${GLOBAL_ARG2_ADDRESS} ${VAR_system_tail_temp_var_ADDRESS}
+    *VAR_system_tail_line_count_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+    *VAR_system_tail_temp_var_ADDRESS="2"
+    cpu_execute "${CPU_GET_COLUMN_CMD}" ${GLOBAL_ARG2_ADDRESS} ${VAR_system_tail_temp_var_ADDRESS}
+    *VAR_system_tail_filename_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+    # check if path is not absolute then concat it with working dir:
+    *VAR_system_tail_temp_var_ADDRESS="/"
+    cpu_execute "${CPU_STARTS_WITH_CMD}" ${VAR_system_tail_filename_ADDRESS} ${VAR_system_tail_temp_var_ADDRESS}
+    jump_if ${LABEL_system_tail_start}
+    cpu_execute "${CPU_CONCAT_CMD}" ${GLOBAL_WORKING_DIR_ADDRESS} ${VAR_system_tail_filename_ADDRESS}
+    *VAR_system_tail_filename_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+  LABEL:system_tail_start
+    call_func file_open ${VAR_system_tail_filename_ADDRESS}
+    if *GLOBAL_OUTPUT_ADDRESS=="-1"
+        *GLOBAL_DISPLAY_ADDRESS="No such file"
+        jump_to ${LABEL_system_tail_error}
+    fi
+    *VAR_system_tail_file_descriptor_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+    call_func file_extract_lines ${VAR_system_tail_file_descriptor_ADDRESS} ${VAR_system_tail_line_count_ADDRESS}
+    if *GLOBAL_OUTPUT_ADDRESS!="0"
+        *GLOBAL_DISPLAY_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        jump_to ${LABEL_system_tail_error}        
+    fi
+
+    *GLOBAL_DISPLAY_ADDRESS="Lines are extracted"
+    display_success
+    return "0"
+
+  LABEL:system_tail_error
+    display_error
+    return "1" 
 
 FUNC:system_ls
     var system_ls_file_descriptor
