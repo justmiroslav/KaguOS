@@ -446,6 +446,61 @@ FUNC:file_extract_lines
     LABEL:find_start_index_error
         return "Invalid range"
 
+FUNC:file_chmod
+    var change_file_info
+    var change_file_temp_var
+    var change_file_disk_name
+    var change_file_counter
+    var change_file_cur_line
+    var change_file_cur_permission
+
+    call_func file_info ${GLOBAL_ARG1_ADDRESS}
+    *VAR_change_file_info_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+    
+    *VAR_change_file_temp_var_ADDRESS="2"
+    cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_change_file_info_ADDRESS} ${VAR_change_file_temp_var_ADDRESS}
+    *VAR_change_file_disk_name_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+    *VAR_change_file_temp_var_ADDRESS="6"
+    cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_change_file_info_ADDRESS} ${VAR_change_file_temp_var_ADDRESS}
+    *VAR_change_file_counter_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+    read_device_buffer ${VAR_change_file_disk_name_ADDRESS} ${VAR_change_file_counter_ADDRESS}
+    *VAR_change_file_cur_line_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+    *VAR_change_file_temp_var_ADDRESS="4"
+    cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_change_file_cur_line_ADDRESS} ${VAR_change_file_temp_var_ADDRESS}
+    *VAR_change_file_cur_permission_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+    if *GLOBAL_ARG2_ADDRESS=="g+r"
+        jump_to ${LABEL_change_file_g_plus_r}
+    fi
+
+    cpu_execute "${CPU_LESS_THAN_CMD}" ${VAR_change_file_cur_permission_ADDRESS} ${VAR_change_file_temp_var_ADDRESS}
+    jump_if ${LABEL_change_file_small_error}
+
+    cpu_execute "${CPU_SUBTRACT_CMD}" ${VAR_change_file_cur_permission_ADDRESS} ${VAR_change_file_temp_var_ADDRESS}
+    *VAR_change_file_cur_permission_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+    jump_to ${LABEL_update_file_permission}
+
+    LABEL:change_file_g_plus_r
+        cpu_execute "${CPU_LESS_THAN_CMD}" ${VAR_change_file_temp_var_ADDRESS} ${VAR_change_file_cur_permission_ADDRESS}
+        jump_if ${LABEL_change_file_big_error}
+        cpu_execute "${CPU_ADD_CMD}" ${VAR_change_file_cur_permission_ADDRESS} ${VAR_change_file_temp_var_ADDRESS}
+        *VAR_change_file_cur_permission_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+    LABEL:update_file_permission
+        cpu_execute "${CPU_REPLACE_COLUMN_CMD}" ${VAR_change_file_cur_line_ADDRESS} ${VAR_change_file_temp_var_ADDRESS} ${VAR_change_file_cur_permission_ADDRESS}
+        write_device_buffer ${VAR_change_file_disk_name_ADDRESS} ${VAR_change_file_counter_ADDRESS} ${GLOBAL_OUTPUT_ADDRESS}
+        call_func file_close ${GLOBAL_ARG1_ADDRESS}
+        return "0"
+
+    LABEL:change_file_big_error
+        return "File already has read permission"
+
+    LABEL:change_file_small_error
+        return "File doesn't have read permission"
+
 # Create a new file
 # INPUT: file name, line count
 # OUTPUT: file descriptor on success, -1 otherwise

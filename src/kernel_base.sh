@@ -100,6 +100,12 @@ if *VAR_original_input_cmd_ADDRESS=="tail"
     jump_to ${LABEL_kernel_loop_start}
 fi
 
+# check for chmod command:
+if *VAR_original_input_cmd_ADDRESS=="chmod"
+    call_func system_chmod ${VAR_original_input_arg1_ADDRESS} ${VAR_original_input_arg2_ADDRESS}
+    jump_to ${LABEL_kernel_loop_start}
+fi
+
 # check for ls command:
 if *VAR_original_input_cmd_ADDRESS=="ls"
     call_func system_ls ${VAR_original_input_arg1_ADDRESS} ${VAR_original_input_arg2_ADDRESS}
@@ -232,14 +238,12 @@ FUNC:system_tail
 
     if *GLOBAL_ARG1_ADDRESS!="-n"
         *GLOBAL_DISPLAY_ADDRESS="Unknown args. Usage: tail -n <line count> <filename>"
-        display_error
-        return "1"
+        jump_to ${LABEL_system_tail_error}
     fi
 
     if *GLOBAL_ARG2_ADDRESS==""
         *GLOBAL_DISPLAY_ADDRESS="Unknown args. Usage: tail -n <line count> <filename>"
-        display_error
-        return "1"
+        jump_to ${LABEL_system_tail_error}
     fi
 
     *VAR_system_tail_temp_var_ADDRESS="1"
@@ -278,6 +282,57 @@ FUNC:system_tail
   LABEL:system_tail_error
     display_error
     return "1" 
+
+FUNC:system_chmod
+    var system_chmod_temp_var
+    var system_chmod_file_descriptor
+    var system_chmod_file_info
+
+    if *GLOBAL_ARG1_ADDRESS=="g+r"
+        jump_to ${LABEL_system_chmod_check_filename}
+    fi
+
+    if *GLOBAL_ARG1_ADDRESS=="g-r"
+        jump_to ${LABEL_system_chmod_check_filename}
+    fi
+
+    *GLOBAL_DISPLAY_ADDRESS="Unknown args. Usage: chmod g<+->r <filename>"
+    jump_to ${LABEL_system_chmod_error}
+
+  LABEL:system_chmod_check_filename
+
+    if *GLOBAL_ARG2_ADDRESS==""
+        *GLOBAL_DISPLAY_ADDRESS="Unknown args. Usage: chmod g<+->r <filename>"
+        jump_to ${LABEL_system_chmod_error}
+    fi
+
+    *VAR_system_chmod_temp_var_ADDRESS="/"
+    cpu_execute "${CPU_STARTS_WITH_CMD}" ${GLOBAL_ARG2_ADDRESS} ${VAR_system_chmod_temp_var_ADDRESS}
+    jump_if ${LABEL_system_chmod_filename}
+    cpu_execute "${CPU_CONCAT_CMD}" ${GLOBAL_WORKING_DIR_ADDRESS} ${GLOBAL_ARG2_ADDRESS}
+    *GLOBAL_ARG2_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+  LABEL:system_chmod_filename
+    call_func file_open ${GLOBAL_ARG2_ADDRESS}
+    if *GLOBAL_OUTPUT_ADDRESS=="-1"
+        *GLOBAL_DISPLAY_ADDRESS="No such file"
+        jump_to ${LABEL_system_chmod_error}
+    fi
+
+    *VAR_system_chmod_file_descriptor_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+    call_func file_chmod ${VAR_system_chmod_file_descriptor_ADDRESS} ${GLOBAL_ARG1_ADDRESS}
+    if *GLOBAL_OUTPUT_ADDRESS!="0"
+        *GLOBAL_DISPLAY_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        jump_to ${LABEL_system_chmod_error}
+    fi
+
+    *GLOBAL_DISPLAY_ADDRESS="Permissions are changed"
+    display_success
+    return "0"
+
+  LABEL:system_chmod_error
+    display_error
+    return "1"
 
 FUNC:system_ls
     var system_ls_file_descriptor
