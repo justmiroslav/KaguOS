@@ -413,13 +413,30 @@ FUNC:file_extract_lines
         jump_to ${LABEL_find_lines_count_loop}
     
     LABEL:find_start_index
-        cpu_execute "${CPU_LESS_THAN_CMD}" ${VAR_file_extract_lines_counter_ADDRESS} ${GLOBAL_ARG2_ADDRESS}
+        *VAR_file_extract_lines_temp_var_ADDRESS="1"
+        cpu_execute "${CPU_LESS_THAN_CMD}" ${GLOBAL_ARG2_ADDRESS} ${VAR_file_extract_lines_temp_var_ADDRESS}
         jump_if ${LABEL_find_start_index_error}
+
+        cpu_execute "${CPU_LESS_THAN_CMD}" ${VAR_file_extract_lines_counter_ADDRESS} ${GLOBAL_ARG2_ADDRESS}
+        jump_if ${LABEL_file_simple_read}
 
         cpu_execute "${CPU_SUBTRACT_CMD}" ${VAR_file_extract_lines_counter_ADDRESS} ${GLOBAL_ARG2_ADDRESS}
         *VAR_file_extract_lines_counter_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
         *VAR_file_extract_lines_counter_ADDRESS++
         *VAR_file_extract_lines_temp_diff_ADDRESS="0"
+        jump_to ${LABEL_file_extract_lines_start}
+
+    LABEL:file_simple_read
+        call_func file_read ${GLOBAL_ARG1_ADDRESS}
+
+        if *GLOBAL_OUTPUT_ADDRESS=="-1"
+            jump_to ${LABEL_file_extract_lines_end}
+        fi
+
+        *GLOBAL_DISPLAY_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        display_println
+
+        jump_to ${LABEL_file_simple_read}
 
     LABEL:file_extract_lines_start
         call_func file_read ${GLOBAL_ARG1_ADDRESS}
@@ -440,7 +457,6 @@ FUNC:file_extract_lines
         jump_to ${LABEL_file_extract_lines_start}
 
     LABEL:file_extract_lines_end
-        call_func file_close ${GLOBAL_ARG1_ADDRESS}
         return "0"
 
     LABEL:find_start_index_error
@@ -492,7 +508,6 @@ FUNC:file_chmod
     LABEL:update_file_permission
         cpu_execute "${CPU_REPLACE_COLUMN_CMD}" ${VAR_change_file_cur_line_ADDRESS} ${VAR_change_file_temp_var_ADDRESS} ${VAR_change_file_cur_permission_ADDRESS}
         write_device_buffer ${VAR_change_file_disk_name_ADDRESS} ${VAR_change_file_counter_ADDRESS} ${GLOBAL_OUTPUT_ADDRESS}
-        call_func file_close ${GLOBAL_ARG1_ADDRESS}
         return "0"
 
     LABEL:change_file_big_error

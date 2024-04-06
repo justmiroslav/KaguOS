@@ -248,10 +248,18 @@ FUNC:system_tail
 
     *VAR_system_tail_temp_var_ADDRESS="1"
     cpu_execute "${CPU_GET_COLUMN_CMD}" ${GLOBAL_ARG2_ADDRESS} ${VAR_system_tail_temp_var_ADDRESS}
+    if *GLOBAL_OUTPUT_ADDRESS==""
+        *GLOBAL_DISPLAY_ADDRESS="Unknown args. Usage: tail -n <line count> <filename>"
+        jump_to ${LABEL_system_tail_error}
+    fi
     *VAR_system_tail_line_count_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
 
     *VAR_system_tail_temp_var_ADDRESS="2"
     cpu_execute "${CPU_GET_COLUMN_CMD}" ${GLOBAL_ARG2_ADDRESS} ${VAR_system_tail_temp_var_ADDRESS}
+    if *GLOBAL_OUTPUT_ADDRESS==""
+        *GLOBAL_DISPLAY_ADDRESS="Unknown args. Usage: tail -n <line count> <filename>"
+        jump_to ${LABEL_system_tail_error}
+    fi
     *VAR_system_tail_filename_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
 
     # check if path is not absolute then concat it with working dir:
@@ -277,6 +285,7 @@ FUNC:system_tail
 
     *GLOBAL_DISPLAY_ADDRESS="Lines are extracted"
     display_success
+    call_func file_close ${VAR_system_tail_file_descriptor_ADDRESS}
     return "0"
 
   LABEL:system_tail_error
@@ -328,6 +337,7 @@ FUNC:system_chmod
 
     *GLOBAL_DISPLAY_ADDRESS="Permissions are changed"
     display_success
+    call_func file_close ${VAR_system_chmod_file_descriptor_ADDRESS}
     return "0"
 
   LABEL:system_chmod_error
