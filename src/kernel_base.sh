@@ -130,10 +130,10 @@ FUNC:system_cat
     var system_cat_file_descriptor
     var system_cat_read_result
 
-    *VAR_system_cat_temp_var_ADDRESS="/"
+    *VAR_system_cat_temp_var_ADDRESS="/mnt/"
     cpu_execute "${CPU_STARTS_WITH_CMD}" ${GLOBAL_ARG1_ADDRESS} ${VAR_system_cat_temp_var_ADDRESS}
     jump_if ${LABEL_system_cat_open_file}
-    cpu_execute "${CPU_CONCAT_CMD}" ${GLOBAL_WORKING_DIR_ADDRESS} ${GLOBAL_ARG1_ADDRESS}
+    cpu_execute "${CPU_CONCAT_CMD}" ${VAR_system_cat_temp_var_ADDRESS} ${GLOBAL_ARG1_ADDRESS}
     *GLOBAL_ARG1_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
 
   LABEL:system_cat_open_file
@@ -165,23 +165,34 @@ FUNC:system_cat
 
 FUNC:system_rm
     var system_rm_temp_var
+    var system_rm_file_descriptor
 
     if *GLOBAL_ARG1_ADDRESS==""
+        *GLOBAL_DISPLAY_ADDRESS="Unknown args. Usage: rm <filename>"
         jump_to ${LABEL_system_remove_error}
     fi
-    
-    call_func file_remove ${GLOBAL_ARG1_ADDRESS}
 
-    *VAR_system_rm_temp_var_ADDRESS="-1"
-    cpu_execute "${CPU_EQUAL_CMD}" ${GLOBAL_OUTPUT_ADDRESS} ${VAR_system_rm_temp_var_ADDRESS}
-    jump_if ${LABEL_system_remove_error}
+    *VAR_system_rm_temp_var_ADDRESS="/mnt/"
+    cpu_execute "${CPU_STARTS_WITH_CMD}" ${GLOBAL_ARG1_ADDRESS} ${VAR_system_rm_temp_var_ADDRESS}
+    jump_if ${LABEL_system_rm_open_file}
+    cpu_execute "${CPU_CONCAT_CMD}" ${VAR_system_rm_temp_var_ADDRESS} ${GLOBAL_ARG1_ADDRESS}
+    *GLOBAL_ARG1_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
 
+  LABEL:system_rm_open_file
+    call_func file_open ${GLOBAL_ARG1_ADDRESS}
+    if *GLOBAL_OUTPUT_ADDRESS=="-1"
+        *GLOBAL_DISPLAY_ADDRESS="No such file"
+        jump_to ${LABEL_system_remove_error}
+    fi
+    *VAR_system_rm_file_descriptor_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+    call_func file_remove ${VAR_system_rm_file_descriptor_ADDRESS} ${GLOBAL_ARG1_ADDRESS}
+    call_func file_close ${VAR_system_rm_file_descriptor_ADDRESS}
     *GLOBAL_DISPLAY_ADDRESS="File was successfully removed."
     display_success
     return "0"
 
   LABEL:system_remove_error
-    *GLOBAL_DISPLAY_ADDRESS="Problems with removing file."
     display_error
     return "1"
 
@@ -202,11 +213,10 @@ FUNC:system_touch
     cpu_execute "${CPU_LESS_THAN_CMD}" ${GLOBAL_ARG2_ADDRESS} ${VAR_system_touch_temp_var_ADDRESS}
     jump_if ${LABEL_system_touch_error}  
 
-    # check if path is not absolute then concat it with working dir:
-    *VAR_system_touch_temp_var_ADDRESS="/"
+    *VAR_system_touch_temp_var_ADDRESS="/mnt/"
     cpu_execute "${CPU_STARTS_WITH_CMD}" ${GLOBAL_ARG1_ADDRESS} ${VAR_system_touch_temp_var_ADDRESS}
     jump_if ${LABEL_system_touch_create_file}
-    cpu_execute "${CPU_CONCAT_CMD}" ${GLOBAL_WORKING_DIR_ADDRESS} ${GLOBAL_ARG1_ADDRESS}
+    cpu_execute "${CPU_CONCAT_CMD}" ${VAR_system_touch_temp_var_ADDRESS} ${GLOBAL_ARG1_ADDRESS}
     *GLOBAL_ARG1_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
 
   LABEL:system_touch_create_file
@@ -260,11 +270,10 @@ FUNC:system_ls
         return "1"
     fi
 
-    # check if path is not absolute then concat it with working dir:
-    *VAR_system_touch_temp_var_ADDRESS="/"
+    *VAR_system_touch_temp_var_ADDRESS="/mnt/"
     cpu_execute "${CPU_STARTS_WITH_CMD}" ${GLOBAL_ARG2_ADDRESS} ${VAR_system_touch_temp_var_ADDRESS}
     jump_if ${LABEL_system_ls_path_absolute}
-    cpu_execute "${CPU_CONCAT_CMD}" ${GLOBAL_WORKING_DIR_ADDRESS} ${GLOBAL_ARG2_ADDRESS}
+    cpu_execute "${CPU_CONCAT_CMD}" ${VAR_system_touch_temp_var_ADDRESS} ${GLOBAL_ARG2_ADDRESS}
     *GLOBAL_ARG2_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
 
   LABEL:system_ls_path_absolute
