@@ -92,11 +92,6 @@ if *VAR_original_input_cmd_ADDRESS=="ls"
     jump_to ${LABEL_kernel_loop_start}
 fi
 
-if *VAR_original_input_cmd_ADDRESS=="lol"
-    call_func system_lol ${VAR_original_input_arg1_ADDRESS}
-    jump_to ${LABEL_kernel_loop_start}
-fi
-
 # check for pwd command:
 if *VAR_original_input_cmd_ADDRESS=="pwd"
     call_func system_pwd
@@ -177,22 +172,6 @@ FUNC:system_cat
     *GLOBAL_DISPLAY_ADDRESS="Error opening file"
     display_error
     return "1"
-
-FUNC:system_lol
-    var system_get_absolute_path_temp_var
-
-    *VAR_system_get_absolute_path_temp_var_ADDRESS="mnt/"
-    cpu_execute "${CPU_STARTS_WITH_CMD}" ${GLOBAL_ARG1_ADDRESS} ${VAR_system_get_absolute_path_temp_var_ADDRESS}
-    if *GLOBAL_COMPARE_RES_ADDRESS=="1"
-        *GLOBAL_ARG1_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
-    fi
-
-    call_func system_get_absolute_path ${GLOBAL_ARG1_ADDRESS}
-    *GLOBAL_ARG1_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
-
-    println(*GLOBAL_ARG1_ADDRESS)
-        
-    return "0"
 
 FUNC:system_touch
     var system_touch_temp_var
