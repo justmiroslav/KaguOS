@@ -92,6 +92,11 @@ if *VAR_original_input_cmd_ADDRESS=="ls"
     jump_to ${LABEL_kernel_loop_start}
 fi
 
+if *VAR_original_input_cmd_ADDRESS=="lol"
+    call_func system_lol ${VAR_original_input_arg1_ADDRESS}
+    jump_to ${LABEL_kernel_loop_start}
+fi
+
 # check for pwd command:
 if *VAR_original_input_cmd_ADDRESS=="pwd"
     call_func system_pwd
@@ -172,6 +177,22 @@ FUNC:system_cat
     *GLOBAL_DISPLAY_ADDRESS="Error opening file"
     display_error
     return "1"
+
+FUNC:system_lol
+    var system_get_absolute_path_temp_var
+
+    *VAR_system_get_absolute_path_temp_var_ADDRESS="mnt/"
+    cpu_execute "${CPU_STARTS_WITH_CMD}" ${GLOBAL_ARG1_ADDRESS} ${VAR_system_get_absolute_path_temp_var_ADDRESS}
+    if *GLOBAL_COMPARE_RES_ADDRESS=="1"
+        *GLOBAL_ARG1_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+    fi
+
+    call_func system_get_absolute_path ${GLOBAL_ARG1_ADDRESS}
+    *GLOBAL_ARG1_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+    println(*GLOBAL_ARG1_ADDRESS)
+        
+    return "0"
 
 FUNC:system_touch
     var system_touch_temp_var
@@ -325,11 +346,13 @@ FUNC:system_load
     var system_load_cur_line
     var system_load_current_proc_offset
     var system_load_temp_var
+    var system_load_temp_empty_filename
 
     var system_load_pid_info_line
     var system_load_pid
     var system_load_priority
 
+    *VAR_system_load_temp_empty_filename_ADDRESS=""
     # Let's remember the first line for process info
     *VAR_system_load_pid_info_line_ADDRESS="${GLOBAL_SCHED_PID_INFO_START_ADDRESS}"
 
@@ -355,6 +378,12 @@ FUNC:system_load
         cpu_execute "${CPU_GET_COLUMN_CMD}" ${GLOBAL_ARG1_ADDRESS} ${VAR_system_load_counter_ADDRESS}
         *VAR_system_load_file_name_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
 
+        *VAR_system_load_temp_var_ADDRESS="/mnt/"
+        cpu_execute "${CPU_STARTS_WITH_CMD}" ${GLOBAL_OUTPUT_ADDRESS} ${VAR_system_load_temp_var_ADDRESS}
+        if *GLOBAL_COMPARE_RES_ADDRESS=="1"
+            *VAR_system_load_temp_empty_filename_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        fi
+
         if *VAR_system_load_file_name_ADDRESS==""
             jump_to ${LABEL_system_load_loop_end}
         fi
@@ -362,7 +391,11 @@ FUNC:system_load
         # Print info about file that will be loaded:
         *GLOBAL_DISPLAY_ADDRESS="Loading file "
         display_print
-        *GLOBAL_DISPLAY_ADDRESS=*VAR_system_load_file_name_ADDRESS
+        if *VAR_system_load_temp_empty_filename_ADDRESS!=""
+            *GLOBAL_DISPLAY_ADDRESS=*VAR_system_load_temp_empty_filename_ADDRESS
+        else
+            *GLOBAL_DISPLAY_ADDRESS=*VAR_system_load_file_name_ADDRESS
+        fi
         display_println
 
     # FREE PROCESS INFO LINE:
@@ -439,7 +472,11 @@ FUNC:system_load
         # FILE <file> :
         *VAR_system_load_temp_var_ADDRESS="FILE"
         cpu_execute "${CPU_CONCAT_SPACES_CMD}" ${GLOBAL_OUTPUT_ADDRESS} ${VAR_system_load_temp_var_ADDRESS}
-        cpu_execute "${CPU_CONCAT_SPACES_CMD}" ${GLOBAL_OUTPUT_ADDRESS} ${VAR_system_load_file_name_ADDRESS}
+        if *VAR_system_load_temp_empty_filename_ADDRESS!=""
+            cpu_execute "${CPU_CONCAT_SPACES_CMD}" ${GLOBAL_OUTPUT_ADDRESS} ${VAR_system_load_temp_empty_filename_ADDRESS}
+        else
+            cpu_execute "${CPU_CONCAT_SPACES_CMD}" ${GLOBAL_OUTPUT_ADDRESS} ${VAR_system_load_file_name_ADDRESS}
+        fi
 
         copy_from_to_address ${GLOBAL_OUTPUT_ADDRESS} $(read_from_address ${VAR_system_load_pid_info_line_ADDRESS})
 
