@@ -1,3 +1,6 @@
 /dir1/ dev/primary.disk part2
+/mnt/dir1/ dev/empty.disk part2
 /dir2/ dev/primary.disk part3
+/mnt/dir2/ dev/empty.disk part3
+/mnt/ dev/empty.disk part1
 / dev/primary.disk part1

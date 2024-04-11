@@ -1,10 +1,10 @@
 PARTITION_TABLE
-part1 dummyFS RANGE: 6 200 FREE_RANGE: 26 200
+part1 dummyFS RANGE: 6 200 FREE_RANGE: 55 200
 part2 dummyFS RANGE: 201 500 FREE_RANGE: 223 500
 part3 dummyFS RANGE: 501 1000 FREE_RANGE: 532 1000
 PARTITION_TABLE_END
 DUMMY_FS
-
+file1.sh file 7 7 7 root root 26 54
 
 
 
@@ -23,35 +23,35 @@ DUMMY_FS
 
 
 DUMMY_FS_END
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+########PROGRAM START##############
+v_write_to_address ${LOCAL_DISPLAY_ADDRESS} "Enter the value of number X (file1.sh):"
+v_display_println
+v_read_input
+v_copy_from_to_address ${LOCAL_INPUT_ADDRESS} ${LOCAL_VAR1_ADDRESS}
+v_write_to_address ${LOCAL_VAR2_ADDRESS} "exit"
+v_cpu_execute ${CPU_EQUAL_CMD} ${LOCAL_VAR1_ADDRESS} ${LOCAL_VAR2_ADDRESS}
+v_jump_if 26
+v_write_to_address ${LOCAL_DISPLAY_ADDRESS} "Enter the value of power n (file1.sh):"
+v_display_println
+v_read_input
+v_copy_from_to_address ${LOCAL_INPUT_ADDRESS} ${LOCAL_VAR3_ADDRESS}
+v_cpu_execute ${CPU_EQUAL_CMD} ${LOCAL_VAR2_ADDRESS} ${LOCAL_VAR3_ADDRESS}
+v_jump_if 26
+v_copy_from_to_address ${LOCAL_VAR1_ADDRESS} ${LOCAL_VAR4_ADDRESS}
+v_copy_from_to_address ${LOCAL_VAR3_ADDRESS} ${LOCAL_VAR5_ADDRESS}
+v_cpu_execute ${CPU_LESS_THAN_EQUAL_CMD} ${LOCAL_VAR3_ADDRESS} ${LOCAL_VAR5_ADDRESS}
+v_jump_if 23
+v_cpu_execute ${CPU_ADD_CMD} ${LOCAL_VAR5_ADDRESS} "1"
+v_copy_from_to_address ${LOCAL_OUTPUT_ADDRESS} ${LOCAL_VAR5_ADDRESS}
+v_cpu_execute ${CPU_MULTIPLY_CMD} ${LOCAL_VAR1_ADDRESS} ${LOCAL_VAR1_ADDRESS}
+v_copy_from_to_address ${LOCAL_OUTPUT_ADDRESS} ${LOCAL_VAR4_ADDRESS}
+v_jump_to 16
+v_copy_from_to_address ${LOCAL_VAR4_ADDRESS} ${LOCAL_DISPLAY_ADDRESS}
+v_display_println
+v_jump_to 8
+v v_copy_from_to_address "Exiting the program..." ${LOCAL_DISPLAY_ADDRESS}
+v_display_println
+v_exit
 
 
 
