@@ -1,10 +1,10 @@
 PARTITION_TABLE
-part1 dummyFS RANGE: 6 200 FREE_RANGE: 55 200
+part1 dummyFS RANGE: 6 200 FREE_RANGE: 77 200
 part2 dummyFS RANGE: 201 500 FREE_RANGE: 223 500
 part3 dummyFS RANGE: 501 1000 FREE_RANGE: 532 1000
 PARTITION_TABLE_END
 DUMMY_FS
-file1.sh file 7 7 7 root root 26 54
+file1.sh file 7 7 7 root root 26 76
 
 
 
@@ -28,52 +28,52 @@ v_write_to_address ${LOCAL_DISPLAY_ADDRESS} "Enter the value of number X:"
 v_display_println
 v_read_input
 v_copy_from_to_address ${LOCAL_INPUT_ADDRESS} ${LOCAL_VAR1_ADDRESS}
-v_write_to_address ${LOCAL_VAR2_ADDRESS} "exit"
-v_cpu_execute ${CPU_EQUAL_CMD} ${LOCAL_VAR1_ADDRESS} ${LOCAL_VAR2_ADDRESS}
-v_jump_if 26
+v_write_to_address ${LOCAL_VAR2_ADDRESS} "0"
+v_cpu_execute ${CPU_LESS_THAN_EQUAL_CMD} ${LOCAL_VAR1_ADDRESS} ${LOCAL_VAR2_ADDRESS}
+v_jump_if 34
 v_write_to_address ${LOCAL_DISPLAY_ADDRESS} "Enter the value of power n:"
 v_display_println
 v_read_input
 v_copy_from_to_address ${LOCAL_INPUT_ADDRESS} ${LOCAL_VAR3_ADDRESS}
-v_cpu_execute ${CPU_EQUAL_CMD} ${LOCAL_VAR2_ADDRESS} ${LOCAL_VAR3_ADDRESS}
-v_jump_if 26
-v_copy_from_to_address ${LOCAL_VAR1_ADDRESS} ${LOCAL_VAR4_ADDRESS}
-v_copy_from_to_address ${LOCAL_VAR3_ADDRESS} ${LOCAL_VAR5_ADDRESS}
-v_cpu_execute ${CPU_LESS_THAN_EQUAL_CMD} ${LOCAL_VAR3_ADDRESS} ${LOCAL_VAR5_ADDRESS}
-v_jump_if 23
-v_cpu_execute ${CPU_INCREMENT_CMD} ${LOCAL_VAR5_ADDRESS}
-v_write_to_address ${LOCAL_VAR5_ADDRESS} ${LOCAL_OUTPUT_ADDRESS}
-v_cpu_execute ${CPU_MULTIPLY_CMD} ${LOCAL_VAR1_ADDRESS} ${LOCAL_VAR1_ADDRESS}
-v_write_to_address ${LOCAL_VAR4_ADDRESS} ${LOCAL_OUTPUT_ADDRESS}
-v_jump_to 16
-v_write_to_address ${LOCAL_DISPLAY_ADDRESS} ${LOCAL_VAR4_ADDRESS}
+v_cpu_execute ${CPU_LESS_THAN_CMD} ${LOCAL_VAR3_ADDRESS} ${LOCAL_VAR2_ADDRESS}
+v_jump_if 32
+v_write_to_address ${LOCAL_DISPLAY_ADDRESS} "Calculating X^n..."
 v_display_println
-v_jump_to 8
+v_cpu_execute ${CPU_EQUAL_CMD} ${LOCAL_VAR3_ADDRESS} ${LOCAL_VAR2_ADDRESS}
+v_jump_if 27
+v_write_to_address ${LOCAL_VAR4_ADDRESS} "1"
+v_write_to_address ${LOCAL_VAR5_ADDRESS} ${LOCAL_VAR1_ADDRESS}
+v_cpu_execute ${CPU_EQUAL_CMD} ${LOCAL_VAR3_ADDRESS} ${LOCAL_VAR4_ADDRESS}
+v_jump_if 28
+v_cpu_execute ${CPU_DECREMENT_CMD} ${LOCAL_VAR3_ADDRESS}
+v_copy_from_to_address ${LOCAL_OUTPUT_ADDRESS} ${LOCAL_VAR3_ADDRESS}
+v_cpu_execute ${CPU_MULTIPLY_CMD} ${LOCAL_VAR5_ADDRESS} ${LOCAL_VAR1_ADDRESS}
+v_copy_from_to_address ${LOCAL_OUTPUT_ADDRESS} ${LOCAL_VAR5_ADDRESS}
+v_jump_to 20
+v_write_to_address ${LOCAL_VAR5_ADDRESS} "1"
+v_write_to_address ${LOCAL_VAR6_ADDRESS} "X^n = "
+v_cpu_execute ${CPU_CONCAT_CMD} ${LOCAL_VAR6_ADDRESS} ${LOCAL_VAR5_ADDRESS}
+v_copy_from_to_address ${LOCAL_OUTPUT_ADDRESS} ${LOCAL_DISPLAY_ADDRESS}
+v_jump_to 35
+v_write_to_address ${LOCAL_DISPLAY_ADDRESS} "Negative power"
+v_jump_to 35
+v_write_to_address ${LOCAL_DISPLAY_ADDRESS} "Non positive number"
+v_display_println
+v_write_to_address ${LOCAL_DISPLAY_ADDRESS} "Enter yes to restart or no to exit:"
+v_display_println
+v_read_input
+v_copy_from_to_address ${LOCAL_INPUT_ADDRESS} ${LOCAL_VAR7_ADDRESS}
+v_write_to_address ${LOCAL_VAR8_ADDRESS} "yes"
+v_cpu_execute ${CPU_EQUAL_CMD} ${LOCAL_VAR7_ADDRESS} ${LOCAL_VAR8_ADDRESS}
+v_jump_if 1
+v_write_to_address ${LOCAL_VAR9_ADDRESS} "no"
+v_cpu_execute ${CPU_EQUAL_CMD} ${LOCAL_VAR7_ADDRESS} ${LOCAL_VAR9_ADDRESS}
+v_jump_if 48
+v_write_to_address ${LOCAL_DISPLAY_ADDRESS} "Invalid input"
+v_jump_to 35
 v_write_to_address ${LOCAL_DISPLAY_ADDRESS} "Exiting the program..."
 v_display_println
 v_exit
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
