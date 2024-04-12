@@ -42,7 +42,7 @@ v_display_println
 v_cpu_execute ${CPU_EQUAL_CMD} ${LOCAL_VAR3_ADDRESS} ${LOCAL_VAR2_ADDRESS}
 v_jump_if 27
 v_write_to_address ${LOCAL_VAR4_ADDRESS} "1"
-v_write_to_address ${LOCAL_VAR5_ADDRESS} ${LOCAL_VAR1_ADDRESS}
+v_copy_from_to_address ${LOCAL_VAR1_ADDRESS} ${LOCAL_VAR5_ADDRESS}
 v_cpu_execute ${CPU_EQUAL_CMD} ${LOCAL_VAR3_ADDRESS} ${LOCAL_VAR4_ADDRESS}
 v_jump_if 28
 v_cpu_execute ${CPU_DECREMENT_CMD} ${LOCAL_VAR3_ADDRESS}
@@ -59,7 +59,7 @@ v_write_to_address ${LOCAL_DISPLAY_ADDRESS} "Negative power"
 v_jump_to 35
 v_write_to_address ${LOCAL_DISPLAY_ADDRESS} "Non positive number"
 v_display_println
-v_write_to_address ${LOCAL_DISPLAY_ADDRESS} "Enter yes to restart or no to exit:"
+v_write_to_address ${LOCAL_DISPLAY_ADDRESS} "Enter 'yes' to restart or 'no' to exit:"
 v_display_println
 v_read_input
 v_copy_from_to_address ${LOCAL_INPUT_ADDRESS} ${LOCAL_VAR7_ADDRESS}
