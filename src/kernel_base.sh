@@ -326,6 +326,7 @@ FUNC:system_load
     var system_load_current_proc_offset
     var system_load_temp_var
     var system_load_temp_empty_filename
+    var system_load_temp_filename
 
     var system_load_pid_info_line
     var system_load_pid
@@ -337,10 +338,6 @@ FUNC:system_load
 
     # We should assign unique process id to every loaded program
     *VAR_system_load_pid_ADDRESS="1"
-
-
-    # Let's assign priority to every loaded program(the less value the bigger priority)
-    *VAR_system_load_priority_ADDRESS="100"
 
     # Let's get free memory range to load the programs into it:
     call_func get_free_RAM_start
@@ -356,6 +353,7 @@ FUNC:system_load
         # Let's get file name from argument:
         cpu_execute "${CPU_GET_COLUMN_CMD}" ${GLOBAL_ARG1_ADDRESS} ${VAR_system_load_counter_ADDRESS}
         *VAR_system_load_file_name_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        *VAR_system_load_temp_filename_ADDRESS=*VAR_system_load_file_name_ADDRESS
 
         *VAR_system_load_temp_var_ADDRESS="/mnt/"
         cpu_execute "${CPU_STARTS_WITH_CMD}" ${GLOBAL_OUTPUT_ADDRESS} ${VAR_system_load_temp_var_ADDRESS}
@@ -402,8 +400,18 @@ FUNC:system_load
 
 
         # TODO process priority should be prompted here instead of hardcode in case of more sophisticated scheduling algorithms:
-        # read_input
-        #*VAR_system_load_priority_ADDRESS=${GLOBAL_INPUT_ADDRESS}
+        *VAR_system_load_temp_var_ADDRESS="Enter priority(number between 0 and 100) for "
+        if *VAR_system_load_temp_empty_filename_ADDRESS!=""
+            cpu_execute "${CPU_CONCAT_CMD}" ${VAR_system_load_temp_var_ADDRESS} ${VAR_system_load_temp_empty_filename_ADDRESS}
+        else
+            cpu_execute "${CPU_CONCAT_CMD}" ${VAR_system_load_temp_var_ADDRESS} ${VAR_system_load_temp_filename_ADDRESS}
+        fi
+        *VAR_system_load_temp_var_ADDRESS=": "
+        cpu_execute "${CPU_CONCAT_CMD}" ${GLOBAL_OUTPUT_ADDRESS} ${VAR_system_load_temp_var_ADDRESS}
+        *GLOBAL_DISPLAY_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        display_print
+        read_input
+        *VAR_system_load_priority_ADDRESS=*GLOBAL_INPUT_ADDRESS
         # TODO_END
 
         # Let's memorize the first address of text segment
@@ -454,7 +462,7 @@ FUNC:system_load
         if *VAR_system_load_temp_empty_filename_ADDRESS!=""
             cpu_execute "${CPU_CONCAT_SPACES_CMD}" ${GLOBAL_OUTPUT_ADDRESS} ${VAR_system_load_temp_empty_filename_ADDRESS}
         else
-            cpu_execute "${CPU_CONCAT_SPACES_CMD}" ${GLOBAL_OUTPUT_ADDRESS} ${VAR_system_load_file_name_ADDRESS}
+            cpu_execute "${CPU_CONCAT_SPACES_CMD}" ${GLOBAL_OUTPUT_ADDRESS} ${VAR_system_load_temp_filename_ADDRESS}
         fi
 
         copy_from_to_address ${GLOBAL_OUTPUT_ADDRESS} $(read_from_address ${VAR_system_load_pid_info_line_ADDRESS})
@@ -466,7 +474,7 @@ FUNC:system_load
         cpu_execute "${CPU_ADD_CMD}" ${VAR_system_load_current_proc_offset_ADDRESS} ${VAR_system_load_temp_var_ADDRESS}
         *VAR_system_load_cur_mem_to_write_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
     # END: PROCESS INFO
-
+        *VAR_system_load_temp_empty_filename_ADDRESS=""
         jump_to ${LABEL_system_load_loop}
     LABEL:system_load_loop_end
 # END: LOAD PROGRAMS
@@ -510,6 +518,101 @@ FUNC:system_load
 
     return "0"
 
+FUNC:find_index_max_priority
+    var find_index_max_priority_temp_var
+    var find_index_max_priority_cur_priority
+    var find_index_max_priority_cur_index
+    var find_index_max_priority_cur_pid
+    var find_index_max_priority_max_priority
+    var find_index_max_priority_max_priority_index
+    var find_index_max_priority_cur_pid_index
+    var find_index_max_priority_pid_list
+
+    *VAR_find_index_max_priority_max_priority_index_ADDRESS="0"
+    *VAR_find_index_max_priority_max_priority_ADDRESS="0"
+    *VAR_find_index_max_priority_cur_index_ADDRESS="1"
+    *VAR_find_index_max_priority_pid_list_ADDRESS=*GLOBAL_ARG1_ADDRESS
+
+    LABEL:find_index_max_priority_loop
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_find_index_max_priority_pid_list_ADDRESS} ${VAR_find_index_max_priority_cur_index_ADDRESS}
+        if *GLOBAL_OUTPUT_ADDRESS==""
+            return *VAR_find_index_max_priority_max_priority_index_ADDRESS
+        fi
+        *VAR_find_index_max_priority_cur_pid_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        *VAR_find_index_max_priority_cur_pid_index_ADDRESS=*VAR_find_index_max_priority_cur_index_ADDRESS
+        *VAR_find_index_max_priority_cur_index_ADDRESS++
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_find_index_max_priority_pid_list_ADDRESS} ${VAR_find_index_max_priority_cur_index_ADDRESS}
+        *VAR_find_index_max_priority_cur_priority_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        *VAR_find_index_max_priority_cur_index_ADDRESS++
+
+        cpu_execute "${CPU_LESS_THAN_CMD}" ${VAR_find_index_max_priority_cur_priority_ADDRESS} ${VAR_find_index_max_priority_max_priority_ADDRESS}
+        jump_if ${LABEL_find_index_max_priority_loop}
+
+        *VAR_find_index_max_priority_max_priority_ADDRESS=*VAR_find_index_max_priority_cur_priority_ADDRESS
+        *VAR_find_index_max_priority_max_priority_index_ADDRESS=*VAR_find_index_max_priority_cur_pid_index_ADDRESS
+        jump_to ${LABEL_find_index_max_priority_loop}
+
+FUNC:find_process_counter_by_pid
+    var find_process_counter_by_pid_cur_pid
+    var find_process_counter_by_pid_cur_index
+    var find_process_counter_by_pid_pid_list
+
+    *VAR_find_process_counter_by_pid_cur_index_ADDRESS="1"
+    *VAR_find_process_counter_by_pid_pid_list_ADDRESS=*GLOBAL_ARG1_ADDRESS
+
+    LABEL:find_process_counter_by_pid_loop
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_find_process_counter_by_pid_pid_list_ADDRESS} ${VAR_find_process_counter_by_pid_cur_index_ADDRESS}
+        *VAR_find_process_counter_by_pid_cur_pid_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        *VAR_find_process_counter_by_pid_cur_index_ADDRESS++
+        cpu_execute "${CPU_EQUAL_CMD}" ${VAR_find_process_counter_by_pid_cur_pid_ADDRESS} ${GLOBAL_ARG2_ADDRESS}
+        if *GLOBAL_COMPARE_RES_ADDRESS=="1"
+            cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_find_process_counter_by_pid_pid_list_ADDRESS} ${VAR_find_process_counter_by_pid_cur_index_ADDRESS}
+            return *GLOBAL_OUTPUT_ADDRESS
+        fi
+        *VAR_find_process_counter_by_pid_cur_index_ADDRESS++
+        jump_to ${LABEL_find_process_counter_by_pid_loop}
+
+FUNC:fibonacci
+    var fibonacci_n_1
+    var fibonacci_n_2
+    var fibonacci_n
+    var fibonacci_list
+    var fibonacci_temp_var
+    var fibonacci_index
+    var fibonacci_counter
+
+    *VAR_fibonacci_list_ADDRESS="1"
+    *VAR_fibonacci_counter_ADDRESS="1"
+    *VAR_fibonacci_index_ADDRESS=*GLOBAL_ARG1_ADDRESS
+    *VAR_fibonacci_temp_var_ADDRESS="2"
+
+    cpu_execute "${CPU_LESS_THAN_EQUAL_CMD}" ${VAR_fibonacci_index_ADDRESS} ${VAR_fibonacci_temp_var_ADDRESS}
+    if *GLOBAL_COMPARE_RES_ADDRESS=="1"
+        return "1"
+    fi
+    
+    cpu_execute "${CPU_CONCAT_SPACES_CMD}" ${VAR_fibonacci_list_ADDRESS} ${VAR_fibonacci_counter_ADDRESS}
+    *VAR_fibonacci_list_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+    LABEL:fibonacci_loop
+        cpu_execute "${CPU_EQUAL_CMD}" ${VAR_fibonacci_temp_var_ADDRESS} ${VAR_fibonacci_index_ADDRESS}
+        if *GLOBAL_COMPARE_RES_ADDRESS=="1"
+            return *VAR_fibonacci_n_ADDRESS
+        fi
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_fibonacci_list_ADDRESS} ${VAR_fibonacci_counter_ADDRESS}
+        *VAR_fibonacci_n_2_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+        *VAR_fibonacci_counter_ADDRESS++
+        cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_fibonacci_list_ADDRESS} ${VAR_fibonacci_counter_ADDRESS}
+        *VAR_fibonacci_n_1_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+        cpu_execute "${CPU_ADD_CMD}" ${VAR_fibonacci_n_1_ADDRESS} ${VAR_fibonacci_n_2_ADDRESS}
+        *VAR_fibonacci_n_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+        cpu_execute "${CPU_CONCAT_SPACES_CMD}" ${VAR_fibonacci_list_ADDRESS} ${VAR_fibonacci_n_ADDRESS}
+        *VAR_fibonacci_list_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+        *VAR_fibonacci_temp_var_ADDRESS++
+        jump_to ${LABEL_fibonacci_loop}
 
 # Let's go through the loaded programs and execute them
 FUNC:system_sched
@@ -519,11 +622,19 @@ FUNC:system_sched
     var system_sched_process_pid_column
     *VAR_system_sched_process_pid_column_ADDRESS="2"
 
+    var system_sched_process_priority_column
+    *VAR_system_sched_process_priority_column_ADDRESS="4"
+
     var system_sched_process_status_column
     *VAR_system_sched_process_status_column_ADDRESS="8"
 
+    var system_sched_pid_counter_list
+    var system_sched_pid_priority_list
+    var system_sched_pid_priority_sort_list
+    var system_sched_sort_temp_var
     var system_sched_cur_proc_info
     var system_sched_cur_pid
+    var system_sched_cur_priority
     var system_sched_cur_status
     var system_sched_process_counter
 
@@ -534,52 +645,102 @@ FUNC:system_sched
     # TODO scheduler logic should be placed here
     LABEL:system_sched_main_loop
 
+        *VAR_system_sched_pid_counter_list_ADDRESS=""
+        *VAR_system_sched_pid_priority_list_ADDRESS=""
+        *VAR_system_sched_pid_priority_sort_list_ADDRESS=""
         *VAR_system_sched_active_process_count_ADDRESS="0"
         *VAR_system_sched_process_counter_ADDRESS="${GLOBAL_SCHED_PID_INFO_START_ADDRESS}"
-        LABEL:system_sched_process_loop
 
+        LABEL:system_sched_collect_pid_priorities
+            if *VAR_system_sched_process_counter_ADDRESS=="${GLOBAL_SCHED_PID_INFO_END_ADDRESS}"
+                *VAR_system_sched_active_process_count_ADDRESS="0"
+                jump_to ${LABEL_system_sched_sort_priorities}
+            fi
             copy_from_to_address "$(read_from_address ${VAR_system_sched_process_counter_ADDRESS})" ${VAR_system_sched_cur_proc_info_ADDRESS}
 
             cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_system_sched_cur_proc_info_ADDRESS} ${VAR_system_sched_process_pid_info_column_ADDRESS}
             if *GLOBAL_OUTPUT_ADDRESS!="PID"
-                # Skip empty or invalid process info lines
-                jump_to ${LABEL_system_sched_process_loop_continue}
+                jump_to ${LABEL_system_sched_collect_pid_priorities_continue}
             fi
 
             cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_system_sched_cur_proc_info_ADDRESS} ${VAR_system_sched_process_status_column_ADDRESS}
             *VAR_system_sched_cur_status_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
 
-            # Skip terminated processes and reset corresponding process info memory
             if *VAR_system_sched_cur_status_ADDRESS=="terminated"
-                jump_to ${LABEL_system_sched_process_loop_continue}
+                jump_to ${LABEL_system_sched_collect_pid_priorities_continue}
             fi
-            # Skip processes that are not ready:
+
             if *VAR_system_sched_cur_status_ADDRESS!="ready"
-                jump_to ${LABEL_system_sched_process_loop_continue}
+                jump_to ${LABEL_system_sched_collect_pid_priorities_continue}
             fi
 
             *VAR_system_sched_active_process_count_ADDRESS++
-            *GLOBAL_CURRENT_PID_INFO_ADDRESS=*VAR_system_sched_process_counter_ADDRESS
-            *GLOBAL_SCHED_COUNTER_ADDRESS="5"
             cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_system_sched_cur_proc_info_ADDRESS} ${VAR_system_sched_process_pid_column_ADDRESS}
-            *GLOBAL_SCHED_PID_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
-
-        LABEL:system_sched_process_loop_continue
-            if *VAR_system_sched_process_counter_ADDRESS=="${GLOBAL_SCHED_PID_INFO_END_ADDRESS}"
-                jump_to ${LABEL_system_sched_process_loop_end}
+            *VAR_system_sched_cur_pid_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+            cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_system_sched_cur_proc_info_ADDRESS} ${VAR_system_sched_process_priority_column_ADDRESS}
+            *VAR_system_sched_cur_priority_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+            if *VAR_system_sched_pid_priority_list_ADDRESS==""
+                *VAR_system_sched_pid_priority_list_ADDRESS=*VAR_system_sched_cur_pid_ADDRESS
+            else
+                cpu_execute "${CPU_CONCAT_SPACES_CMD}" ${VAR_system_sched_pid_priority_list_ADDRESS} ${VAR_system_sched_cur_pid_ADDRESS}
+                *VAR_system_sched_pid_priority_list_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
             fi
+            cpu_execute "${CPU_CONCAT_SPACES_CMD}" ${VAR_system_sched_pid_priority_list_ADDRESS} ${VAR_system_sched_cur_priority_ADDRESS}
+            *VAR_system_sched_pid_priority_list_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
 
-        *VAR_system_sched_process_counter_ADDRESS++
-        jump_to ${LABEL_system_sched_process_loop}
-        LABEL:system_sched_process_loop_end
+            if *VAR_system_sched_pid_counter_list_ADDRESS==""
+                *VAR_system_sched_pid_counter_list_ADDRESS=*VAR_system_sched_cur_pid_ADDRESS
+            else
+                cpu_execute "${CPU_CONCAT_SPACES_CMD}" ${VAR_system_sched_pid_counter_list_ADDRESS} ${VAR_system_sched_cur_pid_ADDRESS}
+                *VAR_system_sched_pid_counter_list_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+            fi
+            cpu_execute "${CPU_CONCAT_SPACES_CMD}" ${VAR_system_sched_pid_counter_list_ADDRESS} ${VAR_system_sched_process_counter_ADDRESS}
+            *VAR_system_sched_pid_counter_list_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
 
-        if *VAR_system_sched_active_process_count_ADDRESS=="0"
-            *GLOBAL_DISPLAY_ADDRESS="No active processes: stopping scheduler."
-            display_success
-            jump_to ${LABEL_system_sched_main_loop_end}
-        fi
-        jump_to ${LABEL_system_sched_main_loop}
-    LABEL:system_sched_main_loop_end
+            LABEL:system_sched_collect_pid_priorities_continue
+                if *VAR_system_sched_active_process_count_ADDRESS=="0"
+                    *GLOBAL_DISPLAY_ADDRESS="No active processes: stopping scheduler."
+                    display_success
+                    return "0"
+                fi
+                *VAR_system_sched_process_counter_ADDRESS++
+                jump_to ${LABEL_system_sched_collect_pid_priorities}
+
+        LABEL:system_sched_sort_priorities
+            call_func find_index_max_priority ${VAR_system_sched_pid_priority_list_ADDRESS}
+            if *GLOBAL_OUTPUT_ADDRESS=="0"
+                jump_to ${LABEL_system_sched_process_loop}
+            fi
+            *VAR_system_sched_sort_temp_var_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+            cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_system_sched_pid_priority_list_ADDRESS} ${VAR_system_sched_sort_temp_var_ADDRESS}
+            *VAR_system_sched_cur_pid_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+            if *VAR_system_sched_pid_priority_sort_list_ADDRESS==""
+                *VAR_system_sched_pid_priority_sort_list_ADDRESS=*VAR_system_sched_cur_pid_ADDRESS
+            else
+                cpu_execute "${CPU_CONCAT_SPACES_CMD}" ${VAR_system_sched_pid_priority_sort_list_ADDRESS} ${VAR_system_sched_cur_pid_ADDRESS}
+                *VAR_system_sched_pid_priority_sort_list_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+            fi
+            cpu_execute "${CPU_REMOVE_COLUMN_CMD}" ${VAR_system_sched_pid_priority_list_ADDRESS} ${VAR_system_sched_sort_temp_var_ADDRESS}
+            cpu_execute "${CPU_REMOVE_COLUMN_CMD}" ${GLOBAL_OUTPUT_ADDRESS} ${VAR_system_sched_sort_temp_var_ADDRESS}
+            *VAR_system_sched_pid_priority_list_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+            jump_to ${LABEL_system_sched_sort_priorities}
+
+        LABEL:system_sched_process_loop
+            *VAR_system_sched_active_process_count_ADDRESS++
+            cpu_execute "${CPU_GET_COLUMN_CMD}" ${VAR_system_sched_pid_priority_sort_list_ADDRESS} ${VAR_system_sched_active_process_count_ADDRESS}
+            if *GLOBAL_OUTPUT_ADDRESS==""
+                jump_to ${LABEL_system_sched_main_loop}
+            fi
+            *VAR_system_sched_cur_pid_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+            *GLOBAL_SCHED_PID_ADDRESS=*VAR_system_sched_cur_pid_ADDRESS
+
+            call_func find_process_counter_by_pid ${VAR_system_sched_pid_counter_list_ADDRESS} ${VAR_system_sched_cur_pid_ADDRESS}
+            *GLOBAL_CURRENT_PID_INFO_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+
+            call_func fibonacci ${VAR_system_sched_active_process_count_ADDRESS}
+            *GLOBAL_SCHED_COUNTER_ADDRESS=*GLOBAL_OUTPUT_ADDRESS
+            jump_to ${LABEL_system_sched_process_loop}            
+
     # TODO_END
 
 # END: SCHEDULER
@@ -603,8 +764,6 @@ FUNC:system_sched
         #     jump_to ${LABEL_system_sched_process_loop_debug}
         # LABEL:system_sched_process_loop_debug_end
 # END DEBUG
-
-    return "0"
 
 ##########################################
 # KERNEL_END                             #
